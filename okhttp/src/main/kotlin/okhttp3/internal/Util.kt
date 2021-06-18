@@ -152,8 +152,14 @@ fun Array<String>.hasIntersection(
 }
 
 fun HttpUrl.toHostHeader(includeDefaultPort: Boolean = false): String {
-  val host = if (":" in host) {
-    "[$host]"
+  val host: String = if (":" in host) {
+    val intfScopeStartIndex: Int = host.indexOf("%")
+    //make sure interface scope is removed for IPv6 link local hosts
+    if (intfScopeStartIndex == -1) {
+      "[$host]"
+    } else {
+      "[${host.substring(0, intfScopeStartIndex)}]"
+    }
   } else {
     host
   }

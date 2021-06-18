@@ -35,14 +35,30 @@ fun String.toCanonicalHost(): String? {
   // If the input contains a :, it’s an IPv6 address.
   if (":" in host) {
     // If the input is encased in square braces "[...]", drop 'em.
-    val inetAddress = (if (host.startsWith("[") && host.endsWith("]")) {
-      decodeIpv6(host, 1, host.length - 1)
+    // If the input is encased in square braces "[...]", drop 'em.
+    val hostNoBraces: String = if (host.startsWith("[") && host.endsWith("]")) {
+      host.substring(1, host.length - 1)
     } else {
-      decodeIpv6(host, 0, host.length)
-    }) ?: return null
-    val address = inetAddress.address
-    if (address.size == 16) return inet6AddressToAscii(address)
-    if (address.size == 4) return inetAddress.hostAddress // An IPv4-mapped IPv6 address.
+      host
+    }
+    val percentIndex: Int = hostNoBraces.indexOf("%")
+    val inetAddress: InetAddress? = decodeIpv6(
+      hostNoBraces, 0, if (percentIndex > 0) percentIndex else hostNoBraces.length
+    )
+    if (inetAddress == null || !inetAddress.isLinkLocalAddress && percentIndex > 0) {
+      return null
+    }
+    val address: ByteArray = inetAddress.address
+    if (address.size == 16) {
+      return if (percentIndex > 0) {
+        inet6AddressToAscii(address) + hostNoBraces.substring(percentIndex)
+      } else {
+        inet6AddressToAscii(address)
+      }
+    }
+    if (address.size == 4) {
+      return inetAddress.hostAddress // An IPv4-mapped IPv6 address.
+    }
     throw AssertionError("Invalid IPv6 address: '$host'")
   }
 
